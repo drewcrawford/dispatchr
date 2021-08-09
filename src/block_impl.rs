@@ -2,11 +2,11 @@
 
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_long};
+use crate::data::Unmanaged;
 
 #[repr(C)]
 #[derive(Debug)]
-#[doc(hidden)]
-pub struct __block_descriptor_1 {
+struct block_descriptor_1 {
     pub reserved: c_long,
     pub size: c_long,
     /*
@@ -17,28 +17,35 @@ pub struct __block_descriptor_1 {
         const char *signature;                         // IFF (1<<30)
      */
 }
-
 #[repr(C)]
-#[derive(Debug,Clone)]
-#[allow(non_camel_case_types)]
-#[doc(hidden)]
-pub struct __block_literal<R> {
-    pub isa: *mut c_void,
-    pub flags: c_int,
-    pub reserved: c_int,
+#[derive(Debug)]
+pub(crate) struct block_literal_1 {
+    isa: *mut c_void,
+    flags: c_int,
+    reserved: c_int,
     //first arg to this fn ptr is &block_literal_1
-    pub invoke: *mut c_void,
-    pub descriptor: *mut __block_descriptor_1,
-    //variables
-    pub rust_fn: *const c_void,
-    //store the context fn inline
-    pub rust_context: R
-}
+    invoke: *const c_void,
+    descriptor: *mut block_descriptor_1,
+    /*
+    At some length, I looked into whether it makes sense to store types inline here, with some kind of macro system.
 
-#[repr(transparent)]
+    The answer seems to be no, both involve timings of around 65us for dispatch_read.
+
+    This might be a result specific to escaping blocks, as there's some possiblity non-escaping blocks would avoid
+    a Box worth of overhead.
+     */
+    rust_context: *mut c_void
+}
+static mut BLOCK_DESCRIPTOR_1: block_descriptor_1 = block_descriptor_1 {
+    reserved: 0, //unsafe{std::mem::MaybeUninit::uninit().assume_init()} is unstable as const fn
+    size: std::mem::size_of::<block_literal_1>() as i64
+};
+
+
 ///Block type
-pub struct ReadEscapingBlock<T>(pub T);
-impl<T> ReadEscapingBlock<T> {
+#[repr(transparent)]
+pub struct ReadEscapingBlock(block_literal_1);
+impl ReadEscapingBlock {
     pub unsafe fn as_raw(&self) -> *const c_void {
         std::mem::transmute(self)
     }
@@ -54,48 +61,24 @@ extern {
 #[doc(hidden)]
 pub const __BLOCK_HAS_STRET: c_int = 1<<29;
 
-/**Defines a block suitable for dispatch_read.
-```
-# use dispatchr::dispatch_read_block;
-use dispatchr::data::Unmanaged;
-use std::os::raw::{c_int, c_long};
-
-fn read_fn(context:bool, u: Unmanaged, err: c_int) {
-    println!("reading {:?}",context);
-}
-let b = dispatch_read_block!(read_fn, true,bool);
-//pass to dispatch_read
-```
-*/
-#[macro_export]
-macro_rules! dispatch_read_block {
-    ($f: expr, $r:expr, $R: ty) => {
-        {
-            use $crate::block_impl::{__block_descriptor_1,_NSConcreteStackBlock,__BLOCK_HAS_STRET,__block_literal,ReadEscapingBlock};
-            use std::ffi::c_void;
-            extern "C" fn invoke_thunk(block: *mut __block_literal<$R>, data: Unmanaged, error: c_int) {
-                let f: fn($R, Unmanaged, c_int) = unsafe{std::mem::transmute((*block).rust_fn)};
-                let mut temp = std::mem::MaybeUninit::uninit();
-                unsafe{ std::mem::swap(&mut (*block).rust_context, std::mem::transmute(temp.as_mut_ptr())) };
-                f(unsafe{ temp.assume_init()},data,error);
-            }
-            static mut DESCRIPTOR: __block_descriptor_1 = __block_descriptor_1 {
-                reserved: 0, //unsafe{std::mem::MaybeUninit::uninit().assume_init()} is unstable as const fn
-                size: std::mem::size_of::<__block_literal<$R>>() as i64
-            };
-            let block = __block_literal {
-                isa: unsafe{ _NSConcreteStackBlock},
-                flags: __BLOCK_HAS_STRET,
-                reserved: 0,
-                invoke: invoke_thunk as *mut c_void ,
-                descriptor: unsafe{ &mut DESCRIPTOR},
-                rust_context: $r,
-                rust_fn: $f as fn($R, Unmanaged, c_int) as *const c_void
-            };
-            ReadEscapingBlock(block)
-        }
-
+pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(Unmanaged, c_int) {
+    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: Unmanaged, error: c_int) where R: FnOnce(Unmanaged, c_int) {
+        let typed_ptr: *mut R = unsafe{ (*block).rust_context as *mut R};
+        let rust_fn = unsafe{ Box::from_raw(typed_ptr)};
+        rust_fn(data,error);
     }
+    let boxed = Box::new(f);
+    let thunk_fn: *const c_void = invoke_thunk::<F> as *const c_void;
+    let block = block_literal_1 {
+        isa: unsafe{ _NSConcreteStackBlock},
+        flags: __BLOCK_HAS_STRET,
+        reserved: unsafe{ std::mem::MaybeUninit::uninit().assume_init()},
+        invoke: thunk_fn ,
+        descriptor: unsafe{ &mut BLOCK_DESCRIPTOR_1},
+        rust_context: Box::into_raw(boxed) as *mut c_void,
+    };
+    ReadEscapingBlock(block)
 }
+
 
 
