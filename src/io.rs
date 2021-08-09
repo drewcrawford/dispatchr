@@ -1,7 +1,7 @@
 //! <dispatch/io.h>
 
 use std::os::raw::c_int;
-use crate::queue::UnmanagedQueue;
+use crate::queue::Unmanaged as UnmanagedQueue;
 use std::os::unix::io::IntoRawFd;
 use std::ffi::c_void;
 use crate::data::Unmanaged;
@@ -10,7 +10,7 @@ use crate::block_impl::dispatch_read_block;
 
 #[repr(transparent)]
 #[allow(non_camel_case_types)]
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 pub struct dispatch_fd_t(c_int);
 impl dispatch_fd_t {
     pub fn new<F: IntoRawFd>(f: F) -> dispatch_fd_t {
@@ -21,7 +21,7 @@ impl dispatch_fd_t {
 extern "C" {
     #[allow(unused)]
     pub fn dispatch_read(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue,
-    handler: *mut c_void);
+                         handler: *mut c_void);
 }
 
 pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler: F) where F: FnOnce(Unmanaged, c_int) {

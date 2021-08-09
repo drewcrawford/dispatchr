@@ -5,19 +5,19 @@ use std::os::raw::c_uint;
 
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 /*
 > Although dispatch queues are reference-counted objects, you do not need to retain and release the global concurrent queues.
 https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html
  */
-pub struct UnmanagedQueue(*mut c_void);
+pub struct Unmanaged(*mut c_void);
 
 extern "C" {
-    fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> UnmanagedQueue;
+    fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> Unmanaged;
 }
 
 //Nice Rust functions.  These map the swift API DispatchQueue() type
-pub fn global(qos: QoS) -> UnmanagedQueue {
+pub fn global(qos: QoS) -> Unmanaged {
     unsafe{ dispatch_get_global_queue(qos.as_raw(), std::ptr::null()) }
 }
 
