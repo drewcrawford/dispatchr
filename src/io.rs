@@ -24,7 +24,7 @@ extern "C" {
                          handler: *mut c_void);
 }
 
-pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler: F) where F: FnOnce(Unmanaged, c_int) {
+pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler: F) where F: FnOnce(Unmanaged, c_int) + Send + 'static {
     let mut block = dispatch_read_block(handler);
     unsafe{ dispatch_read(fd, length, queue, &mut block as *mut _ as *mut c_void) }
     std::mem::forget(block);
@@ -40,7 +40,7 @@ pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler:
     use crate::data::{Contiguous};
     let fd = dispatch_fd_t(file.into_raw_fd());
     let (sender,receiver) = std::sync::mpsc::channel::<Result<Contiguous,()>>();
-    read(fd,20,crate::queue::global(QoS::UserInitiated), |data,err| {
+    read(fd,20,crate::queue::global(QoS::UserInitiated), move |data,err| {
         println!("read_begin");
         if err != 0 {
             sender.send(Err(())).unwrap();

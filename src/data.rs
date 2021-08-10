@@ -10,6 +10,7 @@ pub struct Contiguous{
     buffer: *const c_void,
     size: usize
 }
+unsafe impl Send for Contiguous {}
 
 
 extern "C" {

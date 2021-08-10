@@ -12,6 +12,9 @@ https://developer.apple.com/library/archive/documentation/General/Conceptual/Con
  */
 pub struct Unmanaged(*mut c_void);
 
+unsafe impl Send for Unmanaged {}
+unsafe impl Sync for Unmanaged {}
+
 extern "C" {
     fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> Unmanaged;
 }

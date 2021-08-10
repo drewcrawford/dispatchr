@@ -18,7 +18,7 @@ struct block_descriptor_1 {
      */
 }
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub(crate) struct block_literal_1 {
     isa: *mut c_void,
     flags: c_int,
@@ -61,8 +61,9 @@ extern {
 #[doc(hidden)]
 pub const __BLOCK_HAS_STRET: c_int = 1<<29;
 
-pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(Unmanaged, c_int) {
-    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: Unmanaged, error: c_int) where R: FnOnce(Unmanaged, c_int) {
+pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(Unmanaged, c_int) + Send + 'static {
+    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: Unmanaged, error: c_int) where R: FnOnce(Unmanaged, c_int) + Send {
+        //println!("use block {:?}",unsafe{(*block).clone()});
         let typed_ptr: *mut R = unsafe{ (*block).rust_context as *mut R};
         let rust_fn = unsafe{ Box::from_raw(typed_ptr)};
         rust_fn(data,error);
@@ -77,6 +78,7 @@ pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(
         descriptor: unsafe{ &mut BLOCK_DESCRIPTOR_1},
         rust_context: Box::into_raw(boxed) as *mut c_void,
     };
+    //println!("make block {:?}",block);
     ReadEscapingBlock(block)
 }
 
