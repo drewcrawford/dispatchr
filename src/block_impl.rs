@@ -51,6 +51,12 @@ impl ReadEscapingBlock {
     }
 }
 
+#[repr(transparent)]
+pub struct WriteEscapingBlock(block_literal_1);
+impl WriteEscapingBlock {
+    pub unsafe fn as_raw(&self) -> *const c_void { std::mem::transmute(self)}
+}
+
 extern {
     #[doc(hidden)]
     pub static _NSConcreteStackBlock: *mut c_void;
@@ -82,5 +88,46 @@ pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(
     ReadEscapingBlock(block)
 }
 
+pub(crate) fn dispatch_write_block<F>(f: F) -> WriteEscapingBlock where F: FnOnce(Option<&Unmanaged>, c_int) + Send + 'static {
+    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: *const Unmanaged, error: c_int) where R: FnOnce(Option<&Unmanaged>, c_int) + Send {
+        let typed_ptr: *mut R = unsafe{ (*block).rust_context as *mut R};
+        let rust_fn = unsafe{ Box::from_raw(typed_ptr)};
+        let data_ref = if data.is_null() { None } else { Some(unsafe{ &*data} )};
+        rust_fn(data_ref,error);
+    }
+    let boxed = Box::new(f);
+    let thunk_fn: *const c_void = invoke_thunk::<F> as *const c_void;
+    let block = block_literal_1 {
+        isa: unsafe{ _NSConcreteStackBlock},
+        flags: __BLOCK_HAS_STRET,
+        reserved: unsafe{ std::mem::MaybeUninit::uninit().assume_init()},
+        invoke: thunk_fn ,
+        descriptor: unsafe{ &mut BLOCK_DESCRIPTOR_1},
+        rust_context: Box::into_raw(boxed) as *mut c_void,
+    };
+    WriteEscapingBlock(block)
+}
 
+pub(crate) struct DropBlock(block_literal_1);
+
+///A block that will drop the receiver.  This can be used to transfer
+/// ownership of the receiver into dispatch.
+pub(crate) fn drop_block<T>(t: T) -> DropBlock {
+    extern "C" fn invoke<T>(block: *mut block_literal_1) {
+        let typed_ptr: *mut T = unsafe{ (*block).rust_context as *mut T};
+        let _rust_fn = unsafe{ Box::from_raw(typed_ptr)};
+        //drop box
+    }
+    let boxed = Box::new(t);
+    let thunk_fn: *const c_void = invoke::<T> as *const c_void;
+    let block = block_literal_1 {
+        isa: unsafe{ _NSConcreteStackBlock},
+        flags: __BLOCK_HAS_STRET,
+        reserved: unsafe{ std::mem::MaybeUninit::uninit().assume_init()},
+        invoke: thunk_fn ,
+        descriptor: unsafe{ &mut BLOCK_DESCRIPTOR_1},
+        rust_context: Box::into_raw(boxed) as *mut c_void,
+    };
+    DropBlock(block)
+}
 

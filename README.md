@@ -8,4 +8,4 @@ In design, this crate is similar to my [objr](https://github.com/drewcrawford/ob
 * It assumes modern apple platforms
 * It is small and has few dependencies
 
-In practice, dispatchr is more immature, currently supporting only `dispatch_read` and a few queue APIs.
+In practice, dispatchr is more immature, currently supporting mostly IO tasks.

@@ -4,6 +4,11 @@ use std::ffi::c_void;
 #[derive(Debug)]
 pub struct Unmanaged(c_void);
 
+pub trait DispatchData {
+    fn as_unmanaged(&self) -> &Unmanaged;
+}
+
+
 #[derive(Debug)]
 pub struct Contiguous {
     //owned type
@@ -24,7 +29,8 @@ impl Contiguous {
 extern "C" {
     fn dispatch_data_create_map(data: *const Unmanaged, buffer_ptr: *mut *const c_void,
     size_ptr: *mut usize) -> *const Unmanaged;
-    fn dispatch_release(object: *const c_void);
+    pub fn dispatch_release(object: *const c_void);
+
 }
 
 impl Unmanaged {
