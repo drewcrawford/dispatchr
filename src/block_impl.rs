@@ -3,6 +3,7 @@
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_long};
 use crate::data::Unmanaged;
+use std::marker::PhantomPinned;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -110,15 +111,24 @@ pub(crate) fn dispatch_write_block<F>(f: F) -> WriteEscapingBlock where F: FnOnc
 
 pub(crate) struct DropBlock(block_literal_1);
 
+///For reasons that are a mystery to me, Pin only works for !Unpin types
+#[repr(transparent)]
+#[allow(dead_code)]
+struct ActuallyPinned<T> {
+    t: T,
+    pin: PhantomPinned // !Unpin
+}
+
 ///A block that will drop the receiver.  This can be used to transfer
 /// ownership of the receiver into dispatch.
 pub(crate) fn drop_block<T>(t: T) -> DropBlock {
     extern "C" fn invoke<T>(block: *mut block_literal_1) {
-        let typed_ptr: *mut T = unsafe{ (*block).rust_context as *mut T};
-        let _rust_fn = unsafe{ Box::from_raw(typed_ptr)};
+        let typed_ptr: *mut ActuallyPinned<T> = unsafe{ (*block).rust_context as *mut ActuallyPinned<T>};
+        let _b = unsafe{ Box::from_raw(typed_ptr)};
         //drop box
     }
-    let boxed = Box::new(t);
+    //WARNING: In practice, the box is pinned from this moment, until it's deallocated.
+    let boxed = Box::new(ActuallyPinned{t: t, pin: PhantomPinned::default()});
     let thunk_fn: *const c_void = invoke::<T> as *const c_void;
     let block = block_literal_1 {
         isa: unsafe{ _NSConcreteStackBlock},

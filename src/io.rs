@@ -64,16 +64,15 @@ pub fn write<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQu
     use std::os::unix::io::IntoRawFd;
     use crate::qos::QoS;
     use crate::queue::global;
-    use crate::external_data::{ExternalMemory,HasExternalMemory};
-    use std::pin::Pin;
+    use crate::external_data::{ExternalMemory, HasMemory};
     let path = std::path::Path::new("/tmp/dispatchr_write_t.txt");
     let file = std::fs::File::create(path).unwrap();
     let fd = dispatch_fd_t(file.into_raw_fd());
     let (sender,receiver) = std::sync::mpsc::channel::<Result<(),()>>();
     struct StaticMemory;
-    impl HasExternalMemory for StaticMemory {
-        fn as_slice(&self) -> Pin<&[u8]> {
-            Pin::new("hello from the test".as_bytes())
+    impl HasMemory for StaticMemory {
+        fn as_slice(&self) -> &[u8] {
+            "hello from the test".as_bytes()
         }
     }
     let queue = global(QoS::UserInitiated).unwrap();
