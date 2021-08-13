@@ -61,8 +61,8 @@ extern {
 #[doc(hidden)]
 pub const __BLOCK_HAS_STRET: c_int = 1<<29;
 
-pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(Unmanaged, c_int) + Send + 'static {
-    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: Unmanaged, error: c_int) where R: FnOnce(Unmanaged, c_int) + Send {
+pub(crate) fn dispatch_read_block<F>(f: F) -> ReadEscapingBlock where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
+    extern "C" fn invoke_thunk<R>(block: *mut block_literal_1, data: &Unmanaged, error: c_int) where R: FnOnce(&Unmanaged, c_int) + Send {
         //println!("use block {:?}",unsafe{(*block).clone()});
         let typed_ptr: *mut R = unsafe{ (*block).rust_context as *mut R};
         let rust_fn = unsafe{ Box::from_raw(typed_ptr)};

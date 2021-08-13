@@ -24,7 +24,7 @@ extern "C" {
                          handler: *mut c_void);
 }
 
-pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler: F) where F: FnOnce(Unmanaged, c_int) + Send + 'static {
+pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
     let mut block = dispatch_read_block(handler);
     unsafe{ dispatch_read(fd, length, queue, &mut block as *mut _ as *mut c_void) }
     std::mem::forget(block);
@@ -46,7 +46,7 @@ pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: UnmanagedQueue, handler:
             sender.send(Err(())).unwrap();
         }
         else {
-            let as_contig = data.into_contiguous();
+            let as_contig = data.as_contiguous();
             sender.send(Ok(as_contig)).unwrap();
         }
     });
