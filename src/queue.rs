@@ -4,24 +4,28 @@ use crate::qos::QoS;
 use std::os::raw::c_uint;
 
 
-#[repr(transparent)]
-#[derive(Debug,Clone)]
+#[repr(C)]
+#[derive(Debug)]
 /*
 > Although dispatch queues are reference-counted objects, you do not need to retain and release the global concurrent queues.
 https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html
  */
-pub struct Unmanaged(*mut c_void);
+pub struct Unmanaged(c_void);
 
-unsafe impl Send for Unmanaged {}
-unsafe impl Sync for Unmanaged {}
 
 extern "C" {
-    fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> Unmanaged;
+    fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> *const Unmanaged;
 }
 
 //Nice Rust functions.  These map the swift API DispatchQueue() type
-pub fn global(qos: QoS) -> Unmanaged {
-    unsafe{ dispatch_get_global_queue(qos.as_raw(), std::ptr::null()) }
+pub fn global(qos: QoS) -> Option<&'static Unmanaged> {
+    let ptr = unsafe{ dispatch_get_global_queue(qos.as_raw(), std::ptr::null()) };
+    if ptr.is_null() {
+        None
+    }
+    else {
+        Some(unsafe{&*ptr})
+    }
 }
 
 
