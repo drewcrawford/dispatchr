@@ -5,7 +5,7 @@ use crate::queue::{Unmanaged as UnmanagedQueue};
 use std::os::unix::io::IntoRawFd;
 use std::ffi::c_void;
 use crate::data::{Unmanaged, DispatchData};
-use crate::block_impl::{dispatch_read_block, dispatch_write_block};
+use crate::block_impl::{WriteEscapingBlock};
 
 
 #[repr(transparent)]
@@ -25,15 +25,18 @@ extern "C" {
 }
 
 pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
-    let mut block = dispatch_read_block(handler);
-    unsafe{ dispatch_read(fd, length, queue, &mut block as *mut _ as *mut c_void) }
-    std::mem::forget(block);
+    unsafe{
+        use crate::block_impl::ReadEscapingBlock;
+        let mut block = ReadEscapingBlock::new(handler);
+        dispatch_read(fd, length, queue, &mut block as *mut _ as *mut c_void)
+    }
 }
 pub fn write<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQueue, handler: F) where F: FnOnce(Option<&Unmanaged>, c_int) + Send + 'static {
-    let mut block = dispatch_write_block(handler);
-    let actual_data = data.as_unmanaged();
-    unsafe { dispatch_write(fd, actual_data, queue, &mut block as *mut _ as *mut c_void)}
-    std::mem::forget(block);
+    unsafe {
+        let mut block = WriteEscapingBlock::new(handler);
+        let actual_data = data.as_unmanaged();
+        dispatch_write(fd, actual_data, queue, &mut block as *mut _ as *mut c_void)
+    }
 }
 
 
