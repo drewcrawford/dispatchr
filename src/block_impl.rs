@@ -1,6 +1,5 @@
-//! https://clang.llvm.org/docs/Block-ABI-Apple.html#high-level
+//! `https://clang.llvm.org/docs/Block-ABI-Apple.html#high-level`
 
-use std::ffi::c_void;
 use std::os::raw::{c_int};
 use crate::data::Unmanaged;
 use std::marker::PhantomPinned;
@@ -29,7 +28,7 @@ struct ActuallyPinned<T> {
 //  * Block will execute exactly once:
 //      * If ObjC executes the block several times, it's UB
 //      * If ObjC executes the block less than once, it is not UB, but it will leak.
-pub(crate) unsafe fn drop_block<T: Send>(t: T) -> DropBlock {
+pub(crate) unsafe fn drop_block<T: Send + 'static>(t: T) -> DropBlock {
     DropBlock::new(move || {
         std::mem::drop(t)
     })

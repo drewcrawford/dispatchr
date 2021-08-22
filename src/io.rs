@@ -24,20 +24,22 @@ extern "C" {
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
 }
 
-pub fn read<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
+pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
     unsafe{
         use crate::block_impl::ReadEscapingBlock;
         let mut block = ReadEscapingBlock::new(handler);
         dispatch_read(fd, length, queue, &mut block as *mut _ as *mut c_void)
     }
 }
-pub fn write<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQueue, handler: F) where F: FnOnce(Option<&Unmanaged>, c_int) + Send + 'static {
+
+pub fn write_completion<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQueue, handler: F) where F: FnOnce(Option<&Unmanaged>, c_int) + Send + 'static {
     unsafe {
         let mut block = WriteEscapingBlock::new(handler);
         let actual_data = data.as_unmanaged();
         dispatch_write(fd, actual_data, queue, &mut block as *mut _ as *mut c_void)
     }
 }
+
 
 
 
@@ -49,13 +51,13 @@ pub fn write<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQu
     use crate::data::{Contiguous};
     let fd = dispatch_fd_t(file.into_raw_fd());
     let (sender,receiver) = std::sync::mpsc::channel::<Result<Contiguous,()>>();
-    read(fd,20,crate::queue::global(QoS::UserInitiated).unwrap(), move |data,err| {
+    read_completion(fd,20,crate::queue::global(QoS::UserInitiated).unwrap(), move |data,err| {
         println!("read_begin");
         if err != 0 {
             sender.send(Err(())).unwrap();
         }
         else {
-            let as_contig = data.as_contiguous();
+            let as_contig = Contiguous::new(data);
             sender.send(Ok(as_contig)).unwrap();
         }
     });
@@ -80,7 +82,7 @@ pub fn write<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQu
     }
     let queue = global(QoS::UserInitiated).unwrap();
     let data = ExternalMemory::new(StaticMemory, queue);
-    write(fd, &data, queue,move |a,b| {
+    write_completion(fd, &data, queue,move |a,b| {
         if b == 0 {
             sender.send(Ok(())).unwrap()
         }

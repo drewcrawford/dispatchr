@@ -3,9 +3,32 @@ use std::ffi::c_void;
 #[repr(C)]
 #[derive(Debug)]
 pub struct Unmanaged(c_void);
+impl DispatchData for &Unmanaged {
+    fn as_unmanaged(&self) -> &Unmanaged {
+        self
+    }
+}
 
 pub trait DispatchData {
     fn as_unmanaged(&self) -> &Unmanaged;
+}
+
+#[derive(Debug)]
+pub struct Managed(*const Unmanaged);
+//ok to send this one since it has unlimited lifetime
+unsafe impl Send for Managed {}
+impl DispatchData for Managed {
+    fn as_unmanaged(&self) -> &Unmanaged {
+        //safe because this is valid for the lifetime of self
+        unsafe{ &*(self.0) }
+    }
+}
+impl Drop for Managed {
+    fn drop(&mut self) {
+        unsafe{
+            dispatch_release(self.0 as *const _ as *const c_void)
+        }
+    }
 }
 
 
@@ -23,6 +46,19 @@ impl Contiguous {
         //should be valid for self lifetime
         unsafe{ &*self.object }
     }
+    ///Creates a new managed object with a contiguous buffer.
+    ///
+    /// The implementation calls `dispatch_data_create_map`.
+    pub fn new<D: DispatchData>(d: D) -> Self {
+        let mut buffer = std::ptr::null();
+        let mut size = 0;
+        let object = unsafe{ dispatch_data_create_map(d.as_unmanaged(), &mut buffer, &mut size)};
+        Contiguous {
+            buffer,
+            size,
+            object: unsafe{&*object}
+        }
+    }
 }
 
 
@@ -31,23 +67,10 @@ extern "C" {
     size_ptr: *mut usize) -> *const Unmanaged;
     pub fn dispatch_release(object: *const c_void);
 
+    pub fn dispatch_retain(object:  *const c_void);
+
 }
 
-impl Unmanaged {
-    ///Creates a new managed object with a contiguous buffer.
-    ///
-    /// The implementation calls `dispatch_data_create_map`.
-    pub fn as_contiguous(&self) -> Contiguous {
-        let mut buffer = std::ptr::null();
-        let mut size = 0;
-        let object = unsafe{ dispatch_data_create_map(self, &mut buffer, &mut size)};
-        Contiguous {
-            buffer,
-            size,
-            object: unsafe{&*object}
-        }
-    }
-}
 
 impl Contiguous {
     pub fn as_slice(&self) -> &[u8] {

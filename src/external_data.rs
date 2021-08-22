@@ -29,7 +29,7 @@ extern "C" {
                             queue: *const UnmanagedQueue, destructor: *const c_void) -> *const Unmanaged;
 }
 impl ExternalMemory {
-    pub fn new<T: HasMemory + Send>(memory: T, destructor_queue: &UnmanagedQueue) -> Self {
+    pub fn new<T: HasMemory + Send + 'static>(memory: T, destructor_queue: &UnmanagedQueue) -> Self {
         let slice_ptr = memory.as_slice().as_ptr();
         let slice_len = memory.as_slice().len();
         let block = unsafe{ drop_block(memory) };
