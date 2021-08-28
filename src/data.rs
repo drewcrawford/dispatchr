@@ -8,6 +8,23 @@ impl DispatchData for &Unmanaged {
         self
     }
 }
+const DISPATCH_DESTRUCTOR_DEFAULT: *const c_void = std::ptr::null();
+impl Unmanaged {
+    pub fn concat(&self, unmanaged: &Unmanaged) -> Managed {
+        let o = unsafe{ dispatch_data_create_concat(self, unmanaged) };
+        Managed(o as *const Unmanaged)
+    }
+    pub fn new() -> *const Unmanaged {
+        unsafe {
+            dispatch_data_create(std::ptr::null(), 0, std::ptr::null(), DISPATCH_DESTRUCTOR_DEFAULT)
+        }
+    }
+    pub fn len(&self) -> usize {
+        unsafe {
+            dispatch_data_get_size(self)
+        }
+    }
+}
 
 pub trait DispatchData {
     fn as_unmanaged(&self) -> &Unmanaged;
@@ -15,6 +32,12 @@ pub trait DispatchData {
 
 #[derive(Debug)]
 pub struct Managed(*const Unmanaged);
+impl Managed {
+    pub fn retain(unmanaged: *const Unmanaged) -> Self {
+        unsafe{ dispatch_retain(unmanaged as *const _) }
+        Managed(unmanaged)
+    }
+}
 //ok to send this one since it has unlimited lifetime
 unsafe impl Send for Managed {}
 impl DispatchData for Managed {
@@ -65,10 +88,12 @@ impl Contiguous {
 extern "C" {
     fn dispatch_data_create_map(data: *const Unmanaged, buffer_ptr: *mut *const c_void,
     size_ptr: *mut usize) -> *const Unmanaged;
+    fn dispatch_data_create_concat(data1: *const Unmanaged, data2: *const Unmanaged) -> *const c_void;
     pub fn dispatch_release(object: *const c_void);
 
     pub fn dispatch_retain(object:  *const c_void);
-
+    fn dispatch_data_create(buffer: *const c_void, size: usize, queue: *const super::queue::Unmanaged, destructor: *const c_void) -> *const Unmanaged;
+    fn dispatch_data_get_size(buffer: *const Unmanaged) -> usize;
 }
 
 
