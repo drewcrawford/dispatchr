@@ -8,23 +8,30 @@ use std::pin::Pin;
 
 #[repr(C)]
 #[derive(Debug)]
-/*
-> Although dispatch queues are reference-counted objects, you do not need to retain and release the global concurrent queues.
-https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html
+/** Unmanaged queue type, performs no memory management.
+
+Often used as the currency type for dispatch queues in case we don't care about memory management
+
  */
 pub struct Unmanaged(c_void);
 blocksr::once_noescape!(pub DispatchSyncBlock() -> ());
 
 impl Unmanaged {
-    ///dispatch_sync
+    ///dispatch_sync, block version.  You pass an instance of `DispatchSyncBlock` in here.
+    ///
+    ///This is the fastest variant and can work without heap allocation, for an example of creating noescape blocks on the stack, see [[blocksr::once_noescape]] documentation
     pub fn sync<F>(&self, block: &DispatchSyncBlock<F>) {
         unsafe {
             dispatch_sync(self, block as *const _ as *const c_void);
         }
     }
-    ///dispatch_sync, closure version, providing a returned value.
+    ///dispatch_sync, closure version, passing through a returned value.
     ///
-    /// If you don't need a return value, the underlying [Unmanaged::sync] method may be faster.
+    /// A common pattern for this variant is 'getting some value out of AppKit' which can only be accessed on the main thread.
+    /// Some objc developers frown on this pattern due to the possibility of deadlocks, so be on the lookout for deadlocks
+    /// when you use the pattern.
+    ///
+    /// If you don't need a return value, the underlying [Unmanaged::sync] method is faster.
     pub fn sync_ret<F,R>(&self, f: F) -> R where F: FnOnce() -> R + Send, R: Send {
         let mut block_value = MaybeUninit::uninit();
         let mut return_value = MaybeUninit::uninit();
@@ -43,7 +50,12 @@ extern "C" {
     fn dispatch_sync(queue: &Unmanaged, block: *const c_void);
 }
 
-//Nice Rust functions.  These map the swift API DispatchQueue() type
+///Like Swift `DispatchQueue.global(qos:)` or `dispatch_get_global_queue`
+///
+/// <https://developer.apple.com/documentation/dispatch/dispatchqueue/2300077-global>
+// --
+// > Although dispatch queues are reference-counted objects, you do not need to retain and release the global concurrent queues.
+// <https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html>
 pub fn global(qos: QoS) -> Option<&'static Unmanaged> {
     let ptr = unsafe{ dispatch_get_global_queue(qos.as_raw(), std::ptr::null()) };
     if ptr.is_null() {
@@ -54,6 +66,9 @@ pub fn global(qos: QoS) -> Option<&'static Unmanaged> {
     }
 }
 
+///Like Swift `DispatchQueue.main` or `dispatch_get_main_queue()`
+///
+/// <https://developer.apple.com/documentation/dispatch/dispatchqueue/1781006-main>
 pub fn main() -> &'static Unmanaged {
     unsafe { &_dispatch_main_q }
 }

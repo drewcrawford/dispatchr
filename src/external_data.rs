@@ -16,9 +16,11 @@ impl HasMemory for String {
 
 
 
-///Wraps a dispatch data that points to external memory.
+///Wraps a dispatch data that points to external memory (such as Rust memory)
 ///
-/// This implementation will drop both the dispatch_data_t and its external memory.
+/// This allows Rust memory to be bridged into dispatch without copies.
+///
+/// This implementation is memory-managed, and will drop both the dispatch_data_t and its external memory when the instance is dropped.
 #[derive(Debug)]
 pub struct ExternalMemory {
     object: *const Unmanaged,
@@ -29,6 +31,9 @@ extern "C" {
                             queue: *const UnmanagedQueue, destructor: *const c_void) -> *const Unmanaged;
 }
 impl ExternalMemory {
+    ///Create a new [ExternalMemory] with some other memory type.
+    /// * `memory`: A type implementing [HasMemory], which returns a slice pointing to the underlying memory
+    /// * `destructor_queue`: Which dispatch queue to call the destructor on.  In practice, usually a way to specify [crate::QoS] for the deallocator.
     pub fn new<T: HasMemory + Send + 'static>(memory: T, destructor_queue: &UnmanagedQueue) -> Self {
         let slice_ptr = memory.as_slice().as_ptr();
         let slice_len = memory.as_slice().len();

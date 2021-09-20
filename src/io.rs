@@ -7,7 +7,7 @@ use std::ffi::c_void;
 use crate::data::{Unmanaged, DispatchData};
 use crate::block_impl::{WriteEscapingBlock};
 
-
+///dispatch type for file descriptor
 #[repr(transparent)]
 #[allow(non_camel_case_types)]
 #[derive(Clone,Copy)]
@@ -26,6 +26,7 @@ extern "C" {
 
 }
 
+///Calls `dispatch_read` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
 pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
     unsafe{
         use crate::block_impl::ReadEscapingBlock;
@@ -34,6 +35,7 @@ pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQue
     }
 }
 
+///Calls `dispatch_write` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
 pub fn write_completion<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &UnmanagedQueue, handler: F) where F: FnOnce(Option<&Unmanaged>, c_int) + Send + 'static {
     unsafe {
         let mut block = WriteEscapingBlock::new(handler);
