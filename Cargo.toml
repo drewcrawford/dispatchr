@@ -8,7 +8,7 @@ edition = "2018"
 
 
 [dependencies]
-blocksr = {path = "../blocksr"}
+blocksr = {git = "https://github.com/drewcrawford/blocksr.git"}
 [dev-dependencies]
 criterion = "0.3"
 
