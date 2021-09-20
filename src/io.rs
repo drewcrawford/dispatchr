@@ -18,10 +18,12 @@ impl dispatch_fd_t {
     }
 }
 
+
 extern "C" {
     fn dispatch_read(fd: dispatch_fd_t, length: usize, queue: *const UnmanagedQueue,
                          handler: *mut c_void);
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
+
 }
 
 pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {

@@ -12,6 +12,9 @@ blocksr = {path = "../blocksr"}
 [dev-dependencies]
 criterion = "0.3"
 
+[[test]]
+name = "main_sync"
+harness = false
 
 [[bench]]
 name = "dispatch_read"
