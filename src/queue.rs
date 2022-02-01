@@ -37,7 +37,7 @@ impl Unmanaged {
         let mut return_value = MaybeUninit::uninit();
         let block_value = unsafe{ Pin::new_unchecked(&mut block_value) };
         let block_value = unsafe{ DispatchSyncBlock::new(block_value, || {
-           *return_value.as_mut_ptr() = f();
+            return_value.write(f());
         })};
         self.sync(&block_value);
         unsafe{ return_value.assume_init() }
