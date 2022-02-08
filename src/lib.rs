@@ -24,5 +24,7 @@ pub mod io;
 pub mod data;
 pub mod block_impl;
 pub mod external_data;
+pub mod semaphore;
+pub mod time;
 
 pub use qos::QoS;
