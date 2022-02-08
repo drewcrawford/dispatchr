@@ -62,6 +62,7 @@ impl Deref for Managed {
     }
 }
 unsafe impl Sync for Managed {}
+unsafe impl Send for Managed {}
 
 #[test] fn test_allocation() {
     let f = Unmanaged::new(0);
