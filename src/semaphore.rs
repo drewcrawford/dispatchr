@@ -43,6 +43,7 @@ impl Unmanaged {
 }
 
 ///Memory-managed wrapper for GCD semaphore.
+#[derive(Debug)]
 pub struct Managed(*mut Unmanaged);
 impl Managed {
     pub fn new(value: isize) -> Self {
