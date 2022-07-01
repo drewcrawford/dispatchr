@@ -4,6 +4,7 @@ use std::os::raw::{c_char, c_int, c_ulong};
 use crate::queue::{Unmanaged as UnmanagedQueue};
 use std::os::unix::io::IntoRawFd;
 use std::ffi::{c_void, CStr};
+use std::ops::Deref;
 use std::ptr::NonNull;
 use libc::{mode_t, off_t, size_t};
 use crate::data::{Unmanaged, DispatchData, dispatch_release};
@@ -23,7 +24,7 @@ impl dispatch_fd_t {
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
-pub struct dispatch_io_type_t(c_ulong);
+pub struct dispatch_io_type_t(pub c_ulong);
 impl dispatch_io_type_t {
     pub const STREAM: dispatch_io_type_t = dispatch_io_type_t(0);
     pub const RANDOM: dispatch_io_type_t = dispatch_io_type_t(1);
@@ -32,6 +33,19 @@ impl dispatch_io_type_t {
 #[repr(C)]
 pub struct UnmanagedIO(c_void);
 
+#[repr(C)]
+#[allow(non_camel_case_types)]
+pub struct dispatch_io_close_flags_t(pub c_ulong);
+
+impl  Default for dispatch_io_close_flags_t {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+impl dispatch_io_close_flags_t {
+    pub const STOP: dispatch_io_close_flags_t = dispatch_io_close_flags_t(0x1);
+}
+
 
 extern "C" {
     fn dispatch_read(fd: dispatch_fd_t, length: usize, queue: *const UnmanagedQueue,
@@ -39,6 +53,7 @@ extern "C" {
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
     fn dispatch_io_create_with_path(tipe: dispatch_io_type_t, path: *const c_char, oflag: c_int, mode_t: mode_t, queue: *const UnmanagedQueue,cleanup_handler: *mut c_void) -> *mut UnmanagedIO;
     fn dispatch_io_read(channel: *const UnmanagedIO, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: *const c_void);
+    fn dispatch_io_close(channel: *const UnmanagedIO, flags: dispatch_io_close_flags_t);
 }
 
 ///Calls `dispatch_read` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
@@ -77,9 +92,18 @@ impl UnmanagedIO {
             dispatch_io_read(self, offset, length, queue, &mut block as *mut _ as *mut c_void);
         }
     }
+    pub fn close(&self, flags: dispatch_io_close_flags_t) {
+        unsafe{dispatch_io_close(self, flags)}
+    }
 }
 
+/**
+Lifetime-managed dispatch channel.
 
+ This type will be automatically closed AND released upon drop.
+
+Therefore, there is no need to call .close().
+ */
 pub struct IO(NonNull<UnmanagedIO>);
 impl IO {
     ///Calls `dispatch_io_create_with_path`.
@@ -96,15 +120,22 @@ impl IO {
             }
         }
     }
-    ///Calls `dispatch_io_read`.
-    pub fn read<H: FnMut(&mut E, bool, *const Unmanaged, c_int) + Send + 'static,E>(&self, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: H,initial_environment: E)  {
-        unsafe{self.0.as_ref().read(offset, length, queue, handler,initial_environment)}
+}
+
+impl Deref for IO {
+    type Target = UnmanagedIO;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe{self.0.as_ref()}
     }
 }
 
 impl Drop for IO {
     fn drop(&mut self) {
-        unsafe{dispatch_release(self.0.as_ptr() as *const c_void)}
+        self.close(dispatch_io_close_flags_t::STOP);
+        unsafe{
+            dispatch_release(self.0.as_ptr() as *const c_void)
+        }
     }
 }
 
@@ -119,7 +150,6 @@ impl Drop for IO {
     let fd = dispatch_fd_t(file.into_raw_fd());
     let (sender,receiver) = std::sync::mpsc::channel::<Result<Contiguous,()>>();
     read_completion(fd,20,crate::queue::global(QoS::UserInitiated).unwrap(), move |data,err| {
-        println!("read_begin");
         if err != 0 {
             sender.send(Err(())).unwrap();
         }
@@ -172,6 +202,11 @@ impl Drop for IO {
     let queue = super::queue::global(QoS::Default).unwrap();
     let f = UnmanagedIO::new_with_path(dispatch_io_type_t::STREAM, &c_path, 0, 0, queue);
     assert!(!f.is_null());
+    let as_ref = unsafe{&*f};
+    as_ref.close(dispatch_io_close_flags_t::default());
+    unsafe{
+        dispatch_release(as_ref as *const _ as *const c_void);
+    }
 
     let p = IO::new_with_path(dispatch_io_type_t::STREAM, &c_path, 0, 0, queue);
     assert!(p.is_some());
