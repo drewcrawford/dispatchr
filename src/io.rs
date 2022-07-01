@@ -3,10 +3,9 @@
 use std::os::raw::{c_char, c_int, c_ulong};
 use crate::queue::{Unmanaged as UnmanagedQueue};
 use std::os::unix::io::IntoRawFd;
-use std::ffi::c_void;
-use std::path::Path;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
-use libc::mode_t;
+use libc::{mode_t, off_t, size_t};
 use crate::data::{Unmanaged, DispatchData, dispatch_release};
 use crate::block_impl::{WriteEscapingBlock};
 use crate::QoS;
@@ -39,6 +38,7 @@ extern "C" {
                          handler: *mut c_void);
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
     fn dispatch_io_create_with_path(tipe: dispatch_io_type_t, path: *const c_char, oflag: c_int, mode_t: mode_t, queue: *const UnmanagedQueue,cleanup_handler: *mut c_void) -> *mut UnmanagedIO;
+    fn dispatch_io_read(channel: *const UnmanagedIO, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: *const c_void);
 }
 
 ///Calls `dispatch_read` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
@@ -63,10 +63,18 @@ impl UnmanagedIO {
     ///Calls `dispatch_io_create_with_path`.
     ///
     /// Since optional closures are tough in rust, just omit them for now...
-    pub fn new_with_path(tipe: dispatch_io_type_t,path: &Path,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> *mut Self {
-        use std::os::unix::ffi::OsStrExt;
+    pub fn new_with_path(tipe: dispatch_io_type_t,path: &CStr,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> *mut Self {
         unsafe {
-            dispatch_io_create_with_path(tipe, path.as_os_str().as_bytes().as_ptr() as *const _ , oflag, mode_t, queue, std::ptr::null_mut() )
+            dispatch_io_create_with_path(tipe, path.as_ptr(), oflag, mode_t, queue, std::ptr::null_mut() )
+        }
+    }
+    ///Calls `dispatch_io_read`.
+    pub fn read<H: FnMut(&mut E, bool, *const Unmanaged, c_int) + Send + 'static,E>(&self, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: H,initial_environment: E) {
+        unsafe {
+            blocksr::many_escaping_nonreentrant!(DataHandler (environment: &mut E, done: bool, data: *const Unmanaged, error: c_int) -> ());
+
+            let mut block = DataHandler::new(initial_environment, handler);
+            dispatch_io_read(self, offset, length, queue, &mut block as *mut _ as *mut c_void);
         }
     }
 }
@@ -77,7 +85,7 @@ impl IO {
     ///Calls `dispatch_io_create_with_path`.
     ///
     /// Since optional closures are tough in rust, just omit them for now...
-    pub fn new_with_path(tipe: dispatch_io_type_t,path: &Path,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> Option<Self> {
+    pub fn new_with_path(tipe: dispatch_io_type_t,path: &CStr,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> Option<Self> {
         let ptr = UnmanagedIO::new_with_path(tipe, path,oflag,mode_t,queue);
         unsafe {
             if ptr.is_null() {
@@ -87,6 +95,10 @@ impl IO {
                 Some(Self(NonNull::new_unchecked(ptr)))
             }
         }
+    }
+    ///Calls `dispatch_io_read`.
+    pub fn read<H: FnMut(&mut E, bool, *const Unmanaged, c_int) + Send + 'static,E>(&self, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: H,initial_environment: E)  {
+        unsafe{self.0.as_ref().read(offset, length, queue, handler,initial_environment)}
     }
 }
 
@@ -154,10 +166,28 @@ impl Drop for IO {
 
 #[test] fn create_io() {
     let path = std::path::Path::new("src/io.rs").canonicalize().unwrap();
+    use std::os::unix::ffi::OsStrExt;
+    use std::ffi::CString;
+    let c_path = CString::new(path.as_os_str().as_bytes()).unwrap();
     let queue = super::queue::global(QoS::Default).unwrap();
-    let f = UnmanagedIO::new_with_path(dispatch_io_type_t::STREAM, &path, 0, 0, queue);
+    let f = UnmanagedIO::new_with_path(dispatch_io_type_t::STREAM, &c_path, 0, 0, queue);
     assert!(!f.is_null());
 
-    let p = IO::new_with_path(dispatch_io_type_t::RANDOM, &path, 0, 0, queue);
+    let p = IO::new_with_path(dispatch_io_type_t::STREAM, &c_path, 0, 0, queue);
     assert!(p.is_some());
+
+    //wait for 'done'
+    use std::sync::mpsc::sync_channel;
+    let (sender,receiver) = sync_channel(0);
+    let channel = p.unwrap();
+    channel.read(0, 100, queue,  |environment, done,data,err| {
+        println!("hi");
+        if done {
+            assert_eq!(err,0);
+            assert!(unsafe{&*data}.len()>=100);
+            environment.send(()).unwrap();
+        }
+    },sender);
+
+    receiver.recv_timeout(std::time::Duration::new(10,0)).unwrap();
 }
