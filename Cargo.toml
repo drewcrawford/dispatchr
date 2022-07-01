@@ -1,7 +1,7 @@
 [package]
 name = "dispatchr"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -9,6 +9,7 @@ edition = "2018"
 
 [dependencies]
 blocksr = {git = "https://github.com/drewcrawford/blocksr.git"}
+libc = "~0"
 [dev-dependencies]
 criterion = "0.3"
 

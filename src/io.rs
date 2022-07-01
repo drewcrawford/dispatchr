@@ -1,11 +1,15 @@
 //! <dispatch/io.h>
 
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int, c_ulong};
 use crate::queue::{Unmanaged as UnmanagedQueue};
 use std::os::unix::io::IntoRawFd;
 use std::ffi::c_void;
-use crate::data::{Unmanaged, DispatchData};
+use std::path::Path;
+use std::ptr::NonNull;
+use libc::mode_t;
+use crate::data::{Unmanaged, DispatchData, dispatch_release};
 use crate::block_impl::{WriteEscapingBlock};
+use crate::QoS;
 
 ///dispatch type for file descriptor
 #[repr(transparent)]
@@ -18,12 +22,23 @@ impl dispatch_fd_t {
     }
 }
 
+#[repr(C)]
+#[allow(non_camel_case_types)]
+pub struct dispatch_io_type_t(c_ulong);
+impl dispatch_io_type_t {
+    pub const STREAM: dispatch_io_type_t = dispatch_io_type_t(0);
+    pub const RANDOM: dispatch_io_type_t = dispatch_io_type_t(1);
+}
+
+#[repr(C)]
+pub struct UnmanagedIO(c_void);
+
 
 extern "C" {
     fn dispatch_read(fd: dispatch_fd_t, length: usize, queue: *const UnmanagedQueue,
                          handler: *mut c_void);
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
-
+    fn dispatch_io_create_with_path(tipe: dispatch_io_type_t, path: *const c_char, oflag: c_int, mode_t: mode_t, queue: *const UnmanagedQueue,cleanup_handler: *mut c_void) -> *mut UnmanagedIO;
 }
 
 ///Calls `dispatch_read` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
@@ -44,6 +59,42 @@ pub fn write_completion<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &
     }
 }
 
+impl UnmanagedIO {
+    ///Calls `dispatch_io_create_with_path`.
+    ///
+    /// Since optional closures are tough in rust, just omit them for now...
+    pub fn new_with_path(tipe: dispatch_io_type_t,path: &Path,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> *mut Self {
+        use std::os::unix::ffi::OsStrExt;
+        unsafe {
+            dispatch_io_create_with_path(tipe, path.as_os_str().as_bytes().as_ptr() as *const _ , oflag, mode_t, queue, std::ptr::null_mut() )
+        }
+    }
+}
+
+
+pub struct IO(NonNull<UnmanagedIO>);
+impl IO {
+    ///Calls `dispatch_io_create_with_path`.
+    ///
+    /// Since optional closures are tough in rust, just omit them for now...
+    pub fn new_with_path(tipe: dispatch_io_type_t,path: &Path,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> Option<Self> {
+        let ptr = UnmanagedIO::new_with_path(tipe, path,oflag,mode_t,queue);
+        unsafe {
+            if ptr.is_null() {
+                None
+            }
+            else {
+                Some(Self(NonNull::new_unchecked(ptr)))
+            }
+        }
+    }
+}
+
+impl Drop for IO {
+    fn drop(&mut self) {
+        unsafe{dispatch_release(self.0.as_ptr() as *const c_void)}
+    }
+}
 
 
 
@@ -101,3 +152,12 @@ pub fn write_completion<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &
     assert!(result.as_slice() == "hello from the test".as_bytes());
 }
 
+#[test] fn create_io() {
+    let path = std::path::Path::new("src/io.rs").canonicalize().unwrap();
+    let queue = super::queue::global(QoS::Default).unwrap();
+    let f = UnmanagedIO::new_with_path(dispatch_io_type_t::STREAM, &path, 0, 0, queue);
+    assert!(!f.is_null());
+
+    let p = IO::new_with_path(dispatch_io_type_t::RANDOM, &path, 0, 0, queue);
+    assert!(p.is_some());
+}

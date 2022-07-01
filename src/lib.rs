@@ -18,6 +18,8 @@ dispatchr is incomplete and primarily binds the dispatch features I use, as I us
 
 */
 
+extern crate core;
+
 pub mod queue;
 pub mod qos;
 pub mod io;
