@@ -8,6 +8,7 @@ edition = "2021"
 
 
 [dependencies]
+#blocksr = {path = "../blocksr"}
 blocksr = {git = "https://github.com/drewcrawford/blocksr.git"}
 libc = "~0"
 [dev-dependencies]

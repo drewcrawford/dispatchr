@@ -66,6 +66,9 @@ impl Deref for Managed {
     }
 }
 
+unsafe impl Send for Managed {}
+unsafe impl Sync for Managed {}
+
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
 pub struct dispatch_source_type_t(*const c_void);

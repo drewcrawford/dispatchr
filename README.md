@@ -13,4 +13,12 @@ for Apple platform features that mimic code from first-party compilers.  Distinc
     * In general, Apple implements the cross-platform APIs with about as much care as the developers using them to port cross-platform apps: *not enough*.
 * Binds `QoS`, which is *the* solution for task priority and responsive GUI apps on macOS
 
-dispatchr is incomplete and primarily binds the dispatch features I use, as I use them in other projects.
+# Status
+dispatchr covers large but incomplete portions of the libdispatch API.
+
+* global queues, dispatch_sync
+* qos
+* popular portions of io: `dispatch_read`, `dispatch_write`, `dispatch_io_create_with_path`
+* data
+* semaphore
+* source (timers only)
