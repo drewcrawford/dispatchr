@@ -9,7 +9,6 @@ use std::ptr::NonNull;
 use libc::{mode_t, off_t, size_t};
 use crate::data::{Unmanaged, DispatchData, dispatch_release};
 use crate::block_impl::{WriteEscapingBlock};
-use crate::QoS;
 
 ///dispatch type for file descriptor
 #[repr(transparent)]
@@ -198,6 +197,7 @@ impl Drop for IO {
     let path = std::path::Path::new("src/io.rs").canonicalize().unwrap();
     use std::os::unix::ffi::OsStrExt;
     use std::ffi::CString;
+    use crate::qos::QoS;
     let c_path = CString::new(path.as_os_str().as_bytes()).unwrap();
     let queue = super::queue::global(QoS::Default).unwrap();
     let f = UnmanagedIO::new_with_path(dispatch_io_type_t::STREAM, &c_path, 0, 0, queue);
