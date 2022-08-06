@@ -56,7 +56,7 @@ extern "C" {
 }
 
 ///Calls `dispatch_read` with the specified completion handler.  You can use a `blocksr::continuation` to wrap this in an async method if desired.
-pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(&Unmanaged, c_int) + Send + 'static {
+pub fn read_completion<F>(fd: dispatch_fd_t, length: usize, queue: &UnmanagedQueue, handler: F) where F: FnOnce(*const Unmanaged, c_int) + Send + 'static {
     unsafe{
         use crate::block_impl::ReadEscapingBlock;
         let mut block = ReadEscapingBlock::new(handler);
@@ -153,7 +153,7 @@ impl Drop for IO {
             sender.send(Err(())).unwrap();
         }
         else {
-            let as_contig = Contiguous::new(data);
+            let as_contig = Contiguous::new(unsafe{&*data});
             sender.send(Ok(as_contig)).unwrap();
         }
     });

@@ -4,7 +4,7 @@ use std::os::raw::{c_int};
 use crate::data::Unmanaged;
 
 use blocksr::once_escaping;
-once_escaping!(pub(crate) ReadEscapingBlock(data: &Unmanaged, error: c_int) -> ());
+once_escaping!(pub(crate) ReadEscapingBlock(data: *const Unmanaged, error: c_int) -> ());
 
 once_escaping!(pub(crate) WriteEscapingBlock(data: Option<&Unmanaged>, error: c_int) -> ());
 
