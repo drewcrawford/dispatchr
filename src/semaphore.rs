@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 use std::ops::Deref;
-use crate::data::dispatch_release;
+use crate::data::{dispatch_release, dispatch_retain};
 use crate::time::Time;
 
 extern "C" {
@@ -62,6 +62,14 @@ impl Deref for Managed {
         unsafe{&*self.0}
     }
 }
+impl Clone for Managed {
+    fn clone(&self) -> Self {
+        unsafe{dispatch_retain(self.0 as *const c_void)};
+        Managed {
+            0: self.0
+        }
+    }
+}
 unsafe impl Sync for Managed {}
 unsafe impl Send for Managed {}
 
@@ -83,5 +91,8 @@ unsafe impl Send for Managed {}
             static_f.signal();
         });
         f.wait(Time::FOREVER);
+        //try cloning
+        let _ = f.clone();
+
     }
 }
