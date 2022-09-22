@@ -50,6 +50,7 @@ extern "C" {
     fn dispatch_read(fd: dispatch_fd_t, length: usize, queue: *const UnmanagedQueue,
                          handler: *mut c_void);
     fn dispatch_write(fd: dispatch_fd_t, data: *const Unmanaged, queue: *const UnmanagedQueue, handler: *mut c_void);
+    fn dispatch_io_create(tipe: dispatch_io_type_t, fd: dispatch_fd_t, queue: *const UnmanagedQueue, cleanup_handler: *mut c_void) -> *mut UnmanagedIO;
     fn dispatch_io_create_with_path(tipe: dispatch_io_type_t, path: *const c_char, oflag: c_int, mode_t: mode_t, queue: *const UnmanagedQueue,cleanup_handler: *mut c_void) -> *mut UnmanagedIO;
     fn dispatch_io_read(channel: *const UnmanagedIO, offset: off_t, length: size_t, queue: *const UnmanagedQueue, handler: *const c_void);
     fn dispatch_io_close(channel: *const UnmanagedIO, flags: dispatch_io_close_flags_t);
@@ -74,6 +75,11 @@ pub fn write_completion<F,D: DispatchData>(fd: dispatch_fd_t, data: &D, queue: &
 }
 
 impl UnmanagedIO {
+    pub fn new(tipe: dispatch_io_type_t, fd: dispatch_fd_t, queue: &UnmanagedQueue) -> *mut Self {
+        unsafe {
+            dispatch_io_create(tipe, fd, queue, std::ptr::null_mut())
+        }
+    }
     ///Calls `dispatch_io_create_with_path`.
     ///
     /// Since optional closures are tough in rust, just omit them for now...
@@ -110,6 +116,19 @@ impl IO {
     /// Since optional closures are tough in rust, just omit them for now...
     pub fn new_with_path(tipe: dispatch_io_type_t,path: &CStr,  oflag: c_int,  mode_t: mode_t, queue: &UnmanagedQueue) -> Option<Self> {
         let ptr = UnmanagedIO::new_with_path(tipe, path,oflag,mode_t,queue);
+        unsafe {
+            if ptr.is_null() {
+                None
+            }
+            else {
+                Some(Self(NonNull::new_unchecked(ptr)))
+            }
+        }
+    }
+    ///Calls `dispatch_io_create`.
+    /// Since optional closures are tough in rust, just omit them for now...
+    pub fn new(tipe: dispatch_io_type_t, fd: dispatch_fd_t, queue: &UnmanagedQueue) -> Option<Self> {
+        let ptr = UnmanagedIO::new(tipe, fd, queue);
         unsafe {
             if ptr.is_null() {
                 None
