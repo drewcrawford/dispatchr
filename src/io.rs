@@ -110,6 +110,7 @@ Lifetime-managed dispatch channel.
 Therefore, there is no need to call .close().
  */
 pub struct IO(NonNull<UnmanagedIO>);
+unsafe impl Send for IO {}
 impl IO {
     ///Calls `dispatch_io_create_with_path`.
     ///
@@ -244,4 +245,9 @@ impl Drop for IO {
     },sender);
 
     receiver.recv_timeout(std::time::Duration::new(10,0)).unwrap();
+}
+
+#[test] fn assert_send() {
+    fn assert_send<T: Send>() {}
+    assert_send::<IO>();
 }

@@ -52,6 +52,9 @@ impl Managed {
         unsafe{ dispatch_retain(unmanaged as *const _) }
         Managed(unmanaged)
     }
+    pub fn empty() -> Self {
+        Managed(Unmanaged::new())
+    }
 }
 //ok to send this one since it has unlimited lifetime
 unsafe impl Send for Managed {}
