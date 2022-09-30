@@ -5,12 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-
+# declare our types as arguable in objr.  This is useful in cases where we don't want to pass the bridge type for some reason.
+bridge = ["objr"]
 
 [dependencies]
 #blocksr = {path = "../blocksr"}
 blocksr = {git = "https://github.com/drewcrawford/blocksr.git"}
 libc = "~0"
+objr = {git = "https://github.com/drewcrawford/objr",optional=true}
 [dev-dependencies]
 criterion = "0.3"
 
