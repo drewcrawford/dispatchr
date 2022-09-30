@@ -8,7 +8,7 @@ Compare with [Managed].
 */
 pub struct Unmanaged(c_void);
 #[cfg(feature="bridge")]
-unsafe impl objr::bindings::Arguable for Unmanaged {}
+unsafe impl objr::bindings::Arguable for &Unmanaged {}
 impl DispatchData for &Unmanaged {
     fn as_unmanaged(&self) -> &Unmanaged {
         self
