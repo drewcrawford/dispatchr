@@ -32,6 +32,7 @@ impl dispatch_io_type_t {
 #[repr(C)]
 pub struct UnmanagedIO(c_void);
 unsafe impl Send for UnmanagedIO {}
+unsafe impl Sync for UnmanagedIO {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
