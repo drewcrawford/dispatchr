@@ -113,6 +113,7 @@ Therefore, there is no need to call .close().
  */
 pub struct IO(NonNull<UnmanagedIO>);
 unsafe impl Send for IO {}
+unsafe impl Sync for IO {}
 impl IO {
     ///Calls `dispatch_io_create_with_path`.
     ///
