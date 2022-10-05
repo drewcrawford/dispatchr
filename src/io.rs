@@ -111,6 +111,7 @@ Lifetime-managed dispatch channel.
 
 Therefore, there is no need to call .close().
  */
+#[derive(Debug)]
 pub struct IO(NonNull<UnmanagedIO>);
 unsafe impl Send for IO {}
 unsafe impl Sync for IO {}
