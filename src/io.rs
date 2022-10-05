@@ -7,7 +7,7 @@ use std::ffi::{c_void, CStr};
 use std::ops::Deref;
 use std::ptr::NonNull;
 use libc::{mode_t, off_t, size_t};
-use crate::data::{Unmanaged, DispatchData, dispatch_release};
+use crate::data::{Unmanaged, DispatchData, dispatch_release, dispatch_retain};
 use crate::block_impl::{WriteEscapingBlock};
 
 ///dispatch type for file descriptor
@@ -113,6 +113,12 @@ Therefore, there is no need to call .close().
  */
 #[derive(Debug)]
 pub struct IO(NonNull<UnmanagedIO>);
+impl Clone for IO {
+    fn clone(&self) -> Self {
+        unsafe{dispatch_retain(self.0.as_ptr() as *const c_void)};
+        Self(self.0)
+    }
+}
 unsafe impl Send for IO {}
 unsafe impl Sync for IO {}
 impl IO {
