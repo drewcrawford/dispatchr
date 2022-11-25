@@ -42,12 +42,19 @@ impl Unmanaged {
         self.sync(&block_value);
         unsafe{ return_value.assume_init() }
     }
+
+    pub fn async_f(&self, context: *const c_void, work: extern "C" fn (*const c_void)) {
+        unsafe {
+            dispatch_async_f(self, context, work);
+        }
+    }
 }
 extern "C" {
     fn dispatch_get_global_queue(identifier: c_uint, flags: *const c_void) -> *const Unmanaged;
     static _dispatch_main_q: Unmanaged;
     ///block parameter is actually &DispatchSyncBlock
     fn dispatch_sync(queue: &Unmanaged, block: *const c_void);
+    fn dispatch_async_f(queue: &Unmanaged, context: *const c_void, work: extern "C" fn (*const c_void));
 }
 
 ///Like Swift `DispatchQueue.global(qos:)` or `dispatch_get_global_queue`
