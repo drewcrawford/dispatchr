@@ -207,7 +207,7 @@ impl Drop for IO {
         }
     }
     let queue = global(QoS::UserInitiated).unwrap();
-    let data = ExternalMemory::new(StaticMemory, queue);
+    let data = ExternalMemory::new(StaticMemory, Some(queue));
     write_completion(fd, &data, queue,move |a,b| {
         if b == 0 {
             sender.send(Ok(())).unwrap()

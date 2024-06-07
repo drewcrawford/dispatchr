@@ -34,11 +34,11 @@ impl ExternalMemory {
     ///Create a new [ExternalMemory] with some other memory type.
     /// * `memory`: A type implementing [HasMemory], which returns a slice pointing to the underlying memory
     /// * `destructor_queue`: Which dispatch queue to call the destructor on.  In practice, usually a way to specify [crate::QoS] for the deallocator.
-    pub fn new<T: HasMemory + Send + 'static>(memory: T, destructor_queue: &UnmanagedQueue) -> Self {
+    pub fn new<T: HasMemory + Send + 'static>(memory: T, destructor_queue: Option<&UnmanagedQueue>) -> Self {
         let slice_ptr = memory.as_slice().as_ptr();
         let slice_len = memory.as_slice().len();
         let block = unsafe{ drop_block(memory) };
-        let object = unsafe{ dispatch_data_create(slice_ptr as *const c_void,slice_len,destructor_queue, &block as *const _ as *const c_void )};
+        let object = unsafe{ dispatch_data_create(slice_ptr as *const c_void,slice_len,std::mem::transmute(destructor_queue), &block as *const _ as *const c_void )};
         Self {
             object
         }
@@ -70,7 +70,7 @@ impl DispatchData for ExternalMemory {
         }
     }
     let memory = TestOwner(sender, Box::new([1,2,3]));
-    let data = ExternalMemory::new(memory, crate::queue::global(crate::QoS::UserInitiated).unwrap());
+    let data = ExternalMemory::new(memory, Some(crate::queue::global(crate::QoS::UserInitiated).unwrap()));
     assert!(receiver.recv_timeout(std::time::Duration::from_millis(100)).is_err());
     println!("data {:?}",data);
     //when this is dropped, we should get the data

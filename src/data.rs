@@ -1,3 +1,8 @@
+/*!
+Maps dispatch_data_t to Rust types.
+
+Note: If you want to map Rust memory into a dispatch data object, see [crate::external_data].
+*/
 use std::ffi::c_void;
 
 #[repr(C)]
