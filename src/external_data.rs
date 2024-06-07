@@ -14,6 +14,13 @@ impl HasMemory for String {
     }
 }
 
+impl HasMemory for Box<[u8]> {
+    fn as_slice(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+}
+
 
 
 ///Wraps a dispatch data that points to external memory (such as Rust memory)
