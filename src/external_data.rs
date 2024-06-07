@@ -33,6 +33,9 @@ pub struct ExternalMemory {
     object: *const Unmanaged,
 }
 
+//should be fine?
+unsafe impl Send for ExternalMemory { }
+
 extern "C" {
     fn dispatch_data_create(buffer: *const c_void, size: usize,
                             queue: *const UnmanagedQueue, destructor: *const c_void) -> *const Unmanaged;
