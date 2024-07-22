@@ -13,6 +13,8 @@ bridge = ["objr"]
 blocksr = {git = "https://github.com/drewcrawford/blocksr.git"}
 libc = "~0"
 objr = {git = "https://github.com/drewcrawford/objr",optional=true}
+priority = {git = "ssh://gitea@gitea.mermaid-gecko.ts.net/Metropolis/priority.git", branch = "main"}
+
 [dev-dependencies]
 criterion = "0.3"
 

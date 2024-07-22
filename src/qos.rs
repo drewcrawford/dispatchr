@@ -25,3 +25,15 @@ impl QoS {
         }
     }
 }
+
+impl From<priority::Priority> for QoS {
+    fn from(priority: priority::Priority) -> Self {
+        match priority {
+            priority::Priority::UserInteractive => QoS::UserInteractive,
+            priority::Priority::UserInitiated => QoS::UserInitiated,
+            priority::Priority::Utility => QoS::Utility,
+            priority::Priority::Background => QoS::Background,
+            _ => QoS::Default,
+        }
+    }
+}
