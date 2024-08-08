@@ -40,7 +40,9 @@ impl UnsafeSlice {
     /**
     Creates a new slice.
 
-# Safety: You must guarantee that the slice is valid for the lifetime of any derived dispatch data.
+    # Safety
+    1.  You must guarantee that the slice is valid for the lifetime of any derived dispatch data.
+    2.  You must guarantee that the slice is not modified while it is in use by dispatch.
     */
 
     pub unsafe fn new(slice: &[u8]) -> Self {
@@ -57,6 +59,8 @@ impl HasMemory for UnsafeSlice {
     }
 }
 
+//documented to be safe in constructor
+unsafe impl Send for UnsafeSlice {}
 ///Wraps a dispatch data that points to external memory (such as Rust memory)
 ///
 /// This allows Rust memory to be bridged into dispatch without copies.
