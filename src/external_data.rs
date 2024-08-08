@@ -1,3 +1,6 @@
+/*!
+Collection of types that allow bridging external memory into dispatch data.
+*/
 use crate::data::{Unmanaged, DispatchData};
 use crate::queue::Unmanaged as UnmanagedQueue;
 use crate::block_impl::{drop_block};
@@ -21,7 +24,38 @@ impl HasMemory for Box<[u8]> {
 
 }
 
+/**
+A slice that is not guaranteed to be safe to use.
+This allows bridging external memory into dispatch data without copying it.
 
+To use the slice, pass it to [ExternalMemory::new].
+*/
+pub struct UnsafeSlice {
+    ptr: *const u8,
+    len: usize
+}
+
+impl UnsafeSlice {
+
+    /**
+    Creates a new slice.
+
+# Safety: You must guarantee that the slice is valid for the lifetime of any derived dispatch data.
+    */
+
+    pub unsafe fn new(slice: &[u8]) -> Self {
+        Self {
+            ptr: slice.as_ptr(),
+            len: slice.len()
+        }
+    }
+
+}
+impl HasMemory for UnsafeSlice {
+    fn as_slice(&self) -> &[u8] {
+        unsafe{std::slice::from_raw_parts(self.ptr, self.len)}
+    }
+}
 
 ///Wraps a dispatch data that points to external memory (such as Rust memory)
 ///
