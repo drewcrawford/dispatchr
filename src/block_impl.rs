@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! `https://clang.llvm.org/docs/Block-ABI-Apple.html#high-level`
 
 use std::os::raw::{c_int};

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 /*!
 Collection of types that allow bridging external memory into dispatch data.
 */

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 /*!
 Maps dispatch_data_t to Rust types.
 

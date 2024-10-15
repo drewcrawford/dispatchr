@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! <dispatch/io.h>
 
 use std::os::raw::{c_char, c_int, c_ulong};
@@ -207,7 +209,8 @@ impl Drop for IO {
         }
     }
     let queue = global(QoS::UserInitiated).unwrap();
-    let data = ExternalMemory::new(StaticMemory, Some(queue));
+    let data = ExternalMemory::new(StaticMemory, Some(queue)
+    );
     write_completion(fd, &data, queue,move |a,b| {
         if b == 0 {
             sender.send(Ok(())).unwrap()

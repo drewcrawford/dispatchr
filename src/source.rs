@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::ops::Deref;
 use std::os::raw::c_void;
 use libc::uintptr_t;

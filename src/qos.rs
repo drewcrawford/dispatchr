@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::os::raw::c_uint;
 
 ///Rust QoS type.

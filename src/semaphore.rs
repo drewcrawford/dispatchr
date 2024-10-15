@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::ffi::c_void;
 use std::ops::Deref;
 use crate::data::{dispatch_release, dispatch_retain};
