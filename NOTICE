@@ -1,0 +1,4 @@
+dispatchr https://sealedabstract.com/code/dispatchr
+Drew's Rust bindings for libdispatch, a.k.a. GCD
+Copyright 2024 Drew Crawford.
+

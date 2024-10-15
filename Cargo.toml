@@ -1,6 +1,15 @@
 [package]
 name = "dispatchr"
 version = "1.0.0"
+authors = ["Drew Crawford <drew@sealedabstract.com>"]
+description = "Drew's Rust bindings for libdispatch, a.k.a. GCD"
+homepage = "https://sealedabstract.com/code/dispatchr"
+repository = "https://github.com/drewcrawford/dispatchr"
+license = "MIT OR Apache-2.0"
+keywords = ["libdispatch","gcd","dispatch","macos","apple"]
+categories = ["os::macos-apis", "external-ffi-bindings"]
+rust-version = "1.60.0"
+
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

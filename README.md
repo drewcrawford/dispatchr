@@ -1,5 +1,7 @@
 # dispatchr
 
+![logo](art/logo.png)
+
 Drew's Rust bindings for libdispatch, a.k.a. [GCD](https://en.wikipedia.org/wiki/Grand_Central_Dispatch).  This is an alternative to the [dispatch](https://crates.io/crates/dispatch/0.2.0) crate.
 
 This crate is part of the [objr expanded universe universe](https://github.com/drewcrawford/objr#objr-expanded-universe) which provide low-level, zero-cost Rust abstractions
