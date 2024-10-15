@@ -190,7 +190,7 @@ impl Drop for IO {
         }
     });
     let item = receiver.recv().unwrap().expect("Not error");
-    assert_eq!(item.as_slice(), [47, 47, 33, 32, 60, 100, 105, 115, 112, 97, 116, 99, 104, 47, 105, 111, 46, 104, 62, 10]);
+    assert_eq!(item.as_slice(),[47, 47, 32, 83, 80, 68, 88, 45, 76, 105, 99, 101, 110, 115, 101, 45, 73, 100, 101, 110]);
 }
 
 #[test] fn write_t() {
